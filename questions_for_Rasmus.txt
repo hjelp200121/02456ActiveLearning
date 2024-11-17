@@ -1,0 +1,7 @@
+
+1)
+Hvordan vælger vi antal epochs/hvor meget vi skal træne for forskellige størrelser data?
+
+2)
+Skal vi være helt færdige med projektet d. 10 december hvor der er poster presentation?
+I så fald, hvorfor skal vi først aflevere d. 21?
