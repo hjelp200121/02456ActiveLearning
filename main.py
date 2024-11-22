@@ -14,26 +14,38 @@ from committee import Committee
 
 def train(model, train_set, device):
 
+    num_steps = 400
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     criterion = nn.CrossEntropyLoss()
 
-    loader = torch.utils.data.DataLoader(train_set, 32, shuffle=False, drop_last=True, num_workers=3)
+    loader = torch.utils.data.DataLoader(train_set, 32, shuffle=True, drop_last=False, num_workers=3)
 
     model.train()
-    for image, target in iter(loader):
-        image, target = image.to(device), target.to(device)
 
-        output = model(image)
+    step = 0
+    while True:
+        for image, target in iter(loader):
+            if image.size()[0] == 1:
+                continue
+            
+            image, target = image.to(device), target.to(device)
 
-        optimizer.zero_grad()
-        loss = criterion(output, target)
-        loss.backward()
-        optimizer.step()
+            output = model(image)
+
+            optimizer.zero_grad()
+            loss = criterion(output, target)
+            loss.backward()
+            optimizer.step()
+
+            step += 1
+
+            if step >= num_steps:
+                return
 
 def test(model, test_set, device):
 
-    loader = torch.utils.data.DataLoader(test_set, 32, shuffle=False, drop_last=True, num_workers=3)
+    loader = torch.utils.data.DataLoader(test_set, 32, shuffle=False, drop_last=False, num_workers=3)
 
     model.eval()
 
