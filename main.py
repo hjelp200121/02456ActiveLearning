@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from cluster_margin import ClusterMargin
 from uniform_random import UniformRandom
+from committee import Committee
 
 def train(model, train_set, device):
 
@@ -78,37 +79,69 @@ def plot_accuracies():
     subset_sizes = np.linspace(100, 5000, 20, dtype=np.int32)
     accuracies_uniform = []
     accuracies_cluster_margin = []
+    accuracies_committee = []
 
-    for size in tqdm(subset_sizes):
-        subset = UniformRandom(size).select_subset(train_set)
+    # for size in tqdm(subset_sizes):
+    #     subset = UniformRandom(size).select_subset(train_set)
 
-        model_copy = deepcopy(model) 
+    #     model_copy = deepcopy(model) 
 
-        train(model_copy, subset, device)
-        accuracy = test(model_copy,  test_set, device)
+    #     train(model_copy, subset, device)
+    #     accuracy = test(model_copy,  test_set, device)
 
-        accuracies_uniform.append(accuracy)
+    #     accuracies_uniform.append(accuracy)
     
+    # for size in tqdm(subset_sizes):
+
+    #     seed_sample_size = int(0.2 * size)
+    #     cluster_sample_size = size - seed_sample_size
+    #     margin_sample_size = int(1.5 * cluster_sample_size)
+
+    #     subset = ClusterMargin(deepcopy(model), train, device, seed_sample_size, cluster_sample_size, margin_sample_size).select_subset(train_set)
+
+    #     model_copy = deepcopy(model)
+    #     train(model_copy, subset, device)
+    #     accuracy = test(model_copy, test_set, device, )
+
+    #     accuracies_cluster_margin.append(accuracy)
+
     for size in tqdm(subset_sizes):
 
         seed_sample_size = int(0.2 * size)
-        cluster_sample_size = size - seed_sample_size
-        margin_sample_size = int(1.5 * cluster_sample_size)
+        vote_size = size - seed_sample_size
 
-        subset = ClusterMargin(deepcopy(model), train, device, seed_sample_size, cluster_sample_size, margin_sample_size).select_subset(train_set)
+        model1 = torchvision.models.resnet18()
+        model1.fc = torch.nn.Linear(model1.fc.in_features, 10)
+        model1.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        model1 = model1.to(device)
+        model2 = torchvision.models.resnet18()
+        model2.fc = torch.nn.Linear(model2.fc.in_features, 10)
+        model2.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        model2 = model2.to(device)
+        model3 = torchvision.models.resnet18()
+        model3.fc = torch.nn.Linear(model3.fc.in_features, 10)
+        model3.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        model3 = model3.to(device)
+        model4 = torchvision.models.resnet18()
+        model4.fc = torch.nn.Linear(model4.fc.in_features, 10)
+        model4.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        model4 = model4.to(device)
+
+        subset = Committee(model1, model2, model3, model4, train, device, seed_sample_size, vote_size).select_subset(train_set)
 
         model_copy = deepcopy(model)
         train(model_copy, subset, device)
         accuracy = test(model_copy, test_set, device, )
 
-        accuracies_cluster_margin.append(accuracy)
+        accuracies_committee.append(accuracy)
 
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
     plt.ylim(0.0, 1.0)
 
-    plt.plot(subset_sizes, accuracies_uniform, label="Uniform")
-    plt.plot(subset_sizes, accuracies_cluster_margin, label="Cluster-Margin")
+    # plt.plot(subset_sizes, accuracies_uniform, label="Uniform")
+    # plt.plot(subset_sizes, accuracies_cluster_margin, label="Cluster-Margin")
+    plt.plot(subset_sizes, accuracies_committee, label="Committee")
 
     plt.legend()
 
