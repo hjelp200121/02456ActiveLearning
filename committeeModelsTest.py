@@ -88,67 +88,57 @@ def plot_accuracies():
     val_set = torch.utils.data.Subset(train_set, indices[:val_size])
     train_set = torch.utils.data.Subset(train_set, indices[val_size:])
 
-    subset_sizes = np.linspace(100, 5000, 5, dtype=np.int32)
-    accuracies_uniform = []
-    accuracies_cluster_margin = []
-    accuracies_committee = []
+    subset_sizes = np.linspace(100, 5000, 20, dtype=np.int32)
 
-    for size in tqdm(subset_sizes):
-        subset = UniformRandom(size).select_subset(train_set)
+    # accuracies_uniform = []
+    # for size in tqdm(subset_sizes):
+    #     subset = UniformRandom(size).select_subset(train_set)
 
-        model_copy = deepcopy(model) 
-        train(model_copy, subset, device)
-        accuracy = test(model_copy,  test_set, device)
+    #     model_copy = deepcopy(model) 
 
-        accuracies_uniform.append(accuracy)
-    
-    for size in tqdm(subset_sizes):
+    #     train(model_copy, subset, device)
+    #     accuracy = test(model_copy,  test_set, device)
 
-        seed_sample_size = int(0.2 * size)
-        cluster_sample_size = size - seed_sample_size
-        margin_sample_size = int(1.5 * cluster_sample_size)
+    #     accuracies_uniform.append(accuracy)
 
-        subset = ClusterMargin(deepcopy(model), train, device, seed_sample_size, cluster_sample_size, margin_sample_size).select_subset(train_set)
+    num_num_models = 5
+    accuracies_committee = [[] for _ in range(num_num_models)]
+    for i in range(1,num_num_models+1):
+        accuracies_committee.append([])
+        num_models = 2*i
+        for size in tqdm(subset_sizes):
+            num_models = 4
 
-        model_copy = deepcopy(model)
-        train(model_copy, subset, device)
-        accuracy = test(model_copy, test_set, device, )
+            seed_sample_size = int(0.2 * size)
+            vote_size = size - seed_sample_size
 
-        accuracies_cluster_margin.append(accuracy)
+            models = [None]*num_models
+            for i in range(num_models):
+                models[i] = torchvision.models.resnet18()
+                models[i].fc = torch.nn.Linear(models[i].fc.in_features, 10)
+                models[i].conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+                models[i] = models[i].to(device)
 
-    for size in tqdm(subset_sizes):
-        num_models = 4
+            subset = Committee(models, train, device, seed_sample_size, vote_size).select_subset(train_set)
 
-        seed_sample_size = int(0.2 * size)
-        vote_size = size - seed_sample_size
+            model_copy = deepcopy(model)
+            train(model_copy, subset, device)
+            accuracy = test(model_copy, test_set, device, )
 
-        models = [None]*num_models
-        for i in range(num_models):
-            models[i] = torchvision.models.resnet18()
-            models[i].fc = torch.nn.Linear(models[i].fc.in_features, 10)
-            models[i].conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-            models[i] = models[i].to(device)
-
-        subset = Committee(models, train, device, seed_sample_size, vote_size).select_subset(train_set)
-
-        model_copy = deepcopy(model)
-        train(model_copy, subset, device)
-        accuracy = test(model_copy, test_set, device, )
-
-        accuracies_committee.append(accuracy)
+            accuracies_committee[i].append(accuracy)
 
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
     plt.ylim(0.0, 1.0)
 
-    plt.plot(subset_sizes, accuracies_uniform, label="Uniform")
-    plt.plot(subset_sizes, accuracies_cluster_margin, label="Cluster-Margin")
-    plt.plot(subset_sizes, accuracies_committee, label="Committee")
+    #plt.plot(subset_sizes, accuracies_uniform, label="Uniform")
+    # plt.plot(subset_sizes, accuracies_cluster_margin, label="Cluster-Margin")
+    for i in range(num_num_models):
+        plt.plot(subset_sizes, accuracies_committee[i], label=f"{i*2} models")
 
     plt.legend()
 
     plt.savefig("figs/accuracy.pdf")
-
 
 if __name__ == "__main__":
     plot_accuracies()
