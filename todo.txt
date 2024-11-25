@@ -1,0 +1,6 @@
+update train to train for a good number of epochs
+cluster margin fix sampling the same point multiple times
+committee try different number of models
+cluster margin try hyperparameters
+run all methods 10 times
+

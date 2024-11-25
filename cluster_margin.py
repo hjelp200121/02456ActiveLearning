@@ -1,28 +1,14 @@
-import torch
-import numpy as np
 
-from sklearn.cluster import AgglomerativeClustering
+import torch
 import torch.utils
 import torch.utils.data
+import torch.nn as nn
+import torchvision
 
-def plot_clustering_times(dataset, nmin=10, nmax=10000):
-    import time
-    import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.cluster import AgglomerativeClustering
 
-    sizes = np.linspace(nmin, nmax, 20, dtype=np.int64)
-    times = []
-
-    for size in sizes:
-        t0 = time.time()
-        subset = torch.utils.data.Subset(dataset, np.arange(size))
-        clustering = AgglomerativeClustering(n_clusters=10).fit([x.flatten() for x, _ in subset])   
-        t1 = time.time()
-
-        times.append(t1 - t0)
-        print(f"{size:05d}:\t{times[-1]}s")
-
-    plt.plot(sizes, times)
-    plt.savefig("figs/clustering_times.pdf")
+from model import create_model, train, test
 
 class InputStore:
 
@@ -84,18 +70,7 @@ class ClusterMargin:
         sample = torch.concat([seed_sample, torch.tensor(cluster_sample, dtype=torch.int64)])
 
         return torch.utils.data.Subset(dataset, sample)
-
-
-
-
-
-
-
-
             
-
-
-
 
     def _compute_margin_scores_and_embeddings(self, dataset):
         self.model.eval()
@@ -122,28 +97,6 @@ class ClusterMargin:
 
 
 if __name__ == "__main__":
-    import torchvision
-    import torch
-    import torch.nn as nn
-    
-    def train(model, train_set, device):
-
-
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-        criterion = nn.CrossEntropyLoss()
-
-        loader = torch.utils.data.DataLoader(train_set, 32, shuffle=False, drop_last=False, num_workers=3)
-
-        model.train()
-        for image, target in iter(loader):
-            image, target = image.to(device), target.to(device)
-
-            output = model(image)
-
-            optimizer.zero_grad()
-            loss = criterion(output, target)
-            loss.backward()
-            optimizer.step()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
