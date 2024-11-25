@@ -118,28 +118,19 @@ def plot_accuracies():
     #     accuracies_cluster_margin.append(accuracy)
 
     for size in tqdm(subset_sizes):
+        num_models = 4
 
         seed_sample_size = int(0.2 * size)
         vote_size = size - seed_sample_size
 
-        model1 = torchvision.models.resnet18()
-        model1.fc = torch.nn.Linear(model1.fc.in_features, 10)
-        model1.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-        model1 = model1.to(device)
-        model2 = torchvision.models.resnet18()
-        model2.fc = torch.nn.Linear(model2.fc.in_features, 10)
-        model2.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-        model2 = model2.to(device)
-        model3 = torchvision.models.resnet18()
-        model3.fc = torch.nn.Linear(model3.fc.in_features, 10)
-        model3.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-        model3 = model3.to(device)
-        model4 = torchvision.models.resnet18()
-        model4.fc = torch.nn.Linear(model4.fc.in_features, 10)
-        model4.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-        model4 = model4.to(device)
+        models = [None]*num_models
+        for i in range(num_models):
+            models[i] = torchvision.models.resnet18()
+            models[i].fc = torch.nn.Linear(models[i].fc.in_features, 10)
+            models[i].conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+            models[i] = models[i].to(device)
 
-        subset = Committee(model1, model2, model3, model4, train, device, seed_sample_size, vote_size).select_subset(train_set)
+        subset = Committee(models, train, device, seed_sample_size, vote_size).select_subset(train_set)
 
         model_copy = deepcopy(model)
         train(model_copy, subset, device)
