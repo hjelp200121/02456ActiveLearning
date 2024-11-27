@@ -60,27 +60,7 @@ class ClusterMargin:
         clusters = [margin_sample[labels == l] for l in labels.unique()]
         clusters.sort(key=lambda c: c.size(0))
 
-        for i in range(self.cluster_count):
-            print(clustering.labels_[clusters[i]])
         
-
-        # j = 0
-        # cluster_sample = []
-        # while len(cluster_sample) + 1 < self.cluster_sample_size:
-        #     c = sampled_clusters[j]
-            
-        #     try:
-        #         index = cluster_indices[j].pop()
-        #         cluster_sample.append(index)
-        #     except IndexError:
-        #         pass
-            
-        #     j = (j + 1) % sampled_clusters.size()[0]
-
-        # sample = torch.concat([seed_sample, torch.tensor(cluster_sample, dtype=torch.int64)])
-
-        # return torch.utils.data.Subset(dataset, sample)
-            
 
     def _compute_margin_scores_and_embeddings(self, dataset):
         self.model.eval()
