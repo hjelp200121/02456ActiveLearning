@@ -60,7 +60,24 @@ class ClusterMargin:
         clusters = [margin_sample[labels == l] for l in labels.unique()]
         clusters.sort(key=lambda c: c.size(0))
 
-        
+        for i in range(len(clusters)):
+            clusters[i] = clusters[i].tolist()
+
+        j = 0
+        cluster_sample = []
+        while len(cluster_sample) + 1 < self.cluster_sample_size:
+            try:
+                index = clusters[j].pop()
+                cluster_sample.append(index)
+            except IndexError:
+                pass
+
+            j = (j + 1) % len(labels.unique())
+
+        sample = torch.concat([seed_sample, torch.tensor(cluster_sample, dtype=torch.int64)])
+
+        return torch.utils.data.Subset(dataset, sample)
+
 
     def _compute_margin_scores_and_embeddings(self, dataset):
         self.model.eval()
@@ -97,7 +114,7 @@ if __name__ == "__main__":
     train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
     test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
-    train_set = torch.utils.data.Subset(train_set, [i for i in range(10000)])
+    train_set = torch.utils.data.Subset(train_set, [i for i in range(20000)])
     
     # seed_sample_fracs = [0.2, 0.3, 0.4, 0.5]
     # clusters_per_sample = [1.5, 3.0, 5.0, 10.0]
@@ -111,11 +128,11 @@ if __name__ == "__main__":
     accuracies = []
     times = []
 
-    for i in tqdm(range(1)):
+    for i in tqdm(range(10)):
         model = create_model().to(device)
 
         t0 = time.time()
-        subset = ClusterMargin(model, device, sample_size=100, seed_sample_frac=0.2, clusters_per_sample=1.5, cluster_count=30).select_subset(train_set)
+        subset = ClusterMargin(model, device, sample_size=5000, seed_sample_frac=0.2, clusters_per_sample=3, cluster_count=100).select_subset(train_set)
         t1 = time.time()
 
         train(model, subset, device)
