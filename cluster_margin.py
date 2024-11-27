@@ -5,10 +5,13 @@ import torch.utils.data
 import torch.nn as nn
 import torchvision
 
+import time
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
+from tqdm import tqdm
 
 from model import create_model, train, test
+
 
 class InputStore:
 
@@ -18,58 +21,65 @@ class InputStore:
     def __call__(self, module, args, output):
         self.values.append(args[0])
 
+def inv_perm(perm):
+    inv_perm = torch.empty_like(perm)
+    inv_perm[perm] = torch.arange(0, len(perm))
+    return inv_perm
+
 class ClusterMargin:
 
-    def __init__(self, model, train_fn, device, seed_sample_size=20, cluster_sample_size=80, margin_sample_size=80):
+    def __init__(self, model, device, sample_size, seed_sample_frac, clusters_per_sample, cluster_count):
         self.model = model
-        self.train_fn = train_fn
         self.device = device
 
-        self.seed_sample_size = seed_sample_size
-        self.cluster_sample_size = cluster_sample_size
-        self.margin_sample_size = margin_sample_size
-    
+        self.seed_sample_size = int(seed_sample_frac * sample_size)
+        self.cluster_sample_size = sample_size - self.seed_sample_size
+        self.margin_sample_size = int(clusters_per_sample * self.cluster_sample_size)
+        self.cluster_count = cluster_count
+
     def select_subset(self, dataset):
         
-        # uniformly select seed_size datapoints to label 
-        seed_sample = torch.randperm(len(dataset))[:self.seed_sample_size]
+        # uniformly select seed_size datapoints to label
+        perm = torch.randperm(len(dataset))
         
+        seed_sample = perm[:self.seed_sample_size]
+        not_seed_sample = perm[self.seed_sample_size:]
+
         # train on seed
-        self.train_fn(self.model, torch.utils.data.Subset(dataset, seed_sample), self.device)
+        train(self.model, torch.utils.data.Subset(dataset, seed_sample), self.device)
         
         # compute margin scores and clustering
         margin_scores, embeddings = self._compute_margin_scores_and_embeddings(dataset)
-        clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=8.0).fit(embeddings.cpu()) # TODO: less troll distance threshold or use n_clusters
+        clustering = AgglomerativeClustering(n_clusters=self.cluster_count).fit(embeddings.cpu())
+
+        _, margin_sample = margin_scores[not_seed_sample].cpu().topk(self.margin_sample_size, largest=False)
+        margin_sample = not_seed_sample[margin_sample] # rema from not seed pool to entire dataset
         
-        _, margin_sample = margin_scores.cpu().topk(self.margin_sample_size, largest=False) # TODO: filter out samples that are in the seed
+        labels = torch.tensor(clustering.labels_)[margin_sample]
 
-        sampled_clusters = torch.tensor(clustering.labels_)[margin_sample].unique()
-        sampled_cluster_sizes = torch.empty_like(sampled_clusters, dtype=torch.int64)
+        clusters = [margin_sample[labels == l] for l in labels.unique()]
+        clusters.sort(key=lambda c: c.size(0))
 
-        for i, c in enumerate(sampled_clusters):
-            sampled_cluster_sizes[i] = (clustering.labels_ == c).sum()
-
-        sampled_cluster_sizes, key = sampled_cluster_sizes.sort()
-        sampled_clusters = sampled_clusters[key]
-
-        cluster_indices = [torch.where(clustering.labels_ == c)[0].tolist() for c, size in zip(sampled_clusters, sampled_cluster_sizes)]
+        for i in range(self.cluster_count):
+            print(clustering.labels_[clusters[i]])
         
-        j = 0
-        cluster_sample = []
-        while len(cluster_sample) + 1 < self.cluster_sample_size:
-            c = sampled_clusters[j]
-            
-            try:
-                index = cluster_indices[j].pop()
-                cluster_sample.append(index)
-            except IndexError:
-                pass
-            
-            j = (j + 1) % sampled_clusters.size()[0]
 
-        sample = torch.concat([seed_sample, torch.tensor(cluster_sample, dtype=torch.int64)])
+        # j = 0
+        # cluster_sample = []
+        # while len(cluster_sample) + 1 < self.cluster_sample_size:
+        #     c = sampled_clusters[j]
+            
+        #     try:
+        #         index = cluster_indices[j].pop()
+        #         cluster_sample.append(index)
+        #     except IndexError:
+        #         pass
+            
+        #     j = (j + 1) % sampled_clusters.size()[0]
 
-        return torch.utils.data.Subset(dataset, sample)
+        # sample = torch.concat([seed_sample, torch.tensor(cluster_sample, dtype=torch.int64)])
+
+        # return torch.utils.data.Subset(dataset, sample)
             
 
     def _compute_margin_scores_and_embeddings(self, dataset):
@@ -99,11 +109,6 @@ class ClusterMargin:
 if __name__ == "__main__":
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    model = torchvision.models.resnet18()
-    model.fc = torch.nn.Linear(model.fc.in_features, 10)
-    model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-    model = model.to(device)
     
     transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
@@ -114,7 +119,39 @@ if __name__ == "__main__":
 
     train_set = torch.utils.data.Subset(train_set, [i for i in range(10000)])
     
-    subset = ClusterMargin(model, train, device, seed_sample_size=200, cluster_sample_size=800, margin_sample_size=1200).select_subset(train_set)
+    # seed_sample_fracs = [0.2, 0.3, 0.4, 0.5]
+    # clusters_per_sample = [1.5, 3.0, 5.0, 10.0]
+    # cluster_count = [10, 40, 70, 100]
+
+    torch.manual_seed(1234)
+
+    # original:
+    # accuracy mean: 0.9424, accuracy std: 0.0034, time mean: 24.4212, time std: 0.2470
+
+    accuracies = []
+    times = []
+
+    for i in tqdm(range(1)):
+        model = create_model().to(device)
+
+        t0 = time.time()
+        subset = ClusterMargin(model, device, sample_size=100, seed_sample_frac=0.2, clusters_per_sample=1.5, cluster_count=30).select_subset(train_set)
+        t1 = time.time()
+
+        train(model, subset, device)
+        accuracies.append(test(model, test_set, device))
+        times.append(t1 - t0)
+
+    accuracies = torch.tensor(accuracies)
+    times = torch.tensor(times)
+
+    print(f"accuracy mean: {accuracies.mean():.4f}, accuracy std: {accuracies.std():.4f}, time mean: {times.mean():.4f}, time std: {times.std():.4f}")
+
+
+
+
+
+
 
 
 

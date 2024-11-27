@@ -3,9 +3,7 @@ import torch
 import torchvision
 import torch.nn as nn
 
-def create_model(seed=1234):
-    torch.manual_seed(seed)
-
+def create_model():
     model = torchvision.models.resnet18()
     model.fc = torch.nn.Linear(model.fc.in_features, 10)
     model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
