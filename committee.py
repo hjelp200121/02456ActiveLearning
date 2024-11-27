@@ -39,6 +39,7 @@ class Committee:
             return disagreement_array
 
     def select_subset(self, dataset):
+
         
         # uniformly select seed_size datapoints to label 
         seed_sample = torch.randperm(len(dataset))[:self.seed_sample_size]
@@ -54,11 +55,12 @@ class Committee:
         _, vote_sample = disagreementMatrix.topk(self.vote_size, largest=False)
 
         sample = torch.concat([seed_sample, vote_sample])
-        return torch.utils.data.Subset(dataset, sample)
+        sub = torch.utils.data.Subset(dataset, sample)
+
+        return sub
 
 if __name__ == "__main__":
     import torchvision
-    import torch
     import torch.nn as nn
     num_models = 4
     

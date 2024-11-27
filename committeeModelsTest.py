@@ -1,0 +1,144 @@
+import torch
+import torch.nn as nn
+import torch.utils
+import torch.utils.data
+import torchvision
+import numpy as np
+import matplotlib.pyplot as plt
+from copy import deepcopy
+from tqdm import tqdm
+
+from cluster_margin import ClusterMargin
+from uniform_random import UniformRandom
+from committee import Committee
+
+def train(model, train_set, device):
+
+    num_steps = 400
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    criterion = nn.CrossEntropyLoss()
+
+    loader = torch.utils.data.DataLoader(train_set, 32, shuffle=True, drop_last=False, num_workers=3)
+
+    model.train()
+
+    step = 0
+    while True:
+        for image, target in iter(loader):
+            if image.size()[0] == 1:
+                continue
+            
+            image, target = image.to(device), target.to(device)
+
+            output = model(image)
+
+            optimizer.zero_grad()
+            loss = criterion(output, target)
+            loss.backward()
+            optimizer.step()
+
+            step += 1
+
+            if step >= num_steps:
+                return
+
+def test(model, test_set, device):
+
+    loader = torch.utils.data.DataLoader(test_set, 32, shuffle=False, drop_last=False, num_workers=3)
+
+    model.eval()
+
+    correct = 0
+    total = 0
+
+    for image, target in iter(loader):
+        image, target = image.to(device), target.to(device)
+        output = model(image).softmax(dim=1)
+
+        prediction = output.argmax(dim=1)
+
+        correct += (prediction == target).sum().item()
+        total += image.size()[0]
+
+    accuracy = correct / total
+    return accuracy
+
+def plot_accuracies():
+    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = torchvision.models.resnet18()
+    model.fc = torch.nn.Linear(model.fc.in_features, 10)
+    model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    model = model.to(device)
+    
+    transform = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize((0.5,), (0.5,))
+    ])
+    train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+
+    if True:
+        train_set = torch.utils.data.Subset(train_set, [i for i in range(10000)])
+
+    val_size = int(0.1 * len(train_set))
+    indices = torch.randperm(len(train_set))
+    val_set = torch.utils.data.Subset(train_set, indices[:val_size])
+    train_set = torch.utils.data.Subset(train_set, indices[val_size:])
+
+    subset_sizes = np.linspace(100, 5000, 20, dtype=np.int32)
+
+    # accuracies_uniform = []
+    # for size in tqdm(subset_sizes):
+    #     subset = UniformRandom(size).select_subset(train_set)
+
+    #     model_copy = deepcopy(model) 
+
+    #     train(model_copy, subset, device)
+    #     accuracy = test(model_copy,  test_set, device)
+
+    #     accuracies_uniform.append(accuracy)
+
+    num_num_models = 5
+    accuracies_committee = [[] for _ in range(num_num_models)]
+    for i in range(1,num_num_models+1):
+        accuracies_committee.append([])
+        num_models = 2*i
+        for size in tqdm(subset_sizes):
+            num_models = 4
+
+            seed_sample_size = int(0.2 * size)
+            vote_size = size - seed_sample_size
+
+            models = [None]*num_models
+            for i in range(num_models):
+                models[i] = torchvision.models.resnet18()
+                models[i].fc = torch.nn.Linear(models[i].fc.in_features, 10)
+                models[i].conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+                models[i] = models[i].to(device)
+
+            subset = Committee(models, train, device, seed_sample_size, vote_size).select_subset(train_set)
+
+            model_copy = deepcopy(model)
+            train(model_copy, subset, device)
+            accuracy = test(model_copy, test_set, device, )
+
+            accuracies_committee[i].append(accuracy)
+
+    plt.ylabel("Accuracy")
+    plt.xlabel("Number of labelled points")
+    plt.ylim(0.0, 1.0)
+
+    #plt.plot(subset_sizes, accuracies_uniform, label="Uniform")
+    # plt.plot(subset_sizes, accuracies_cluster_margin, label="Cluster-Margin")
+    for i in range(num_num_models):
+        plt.plot(subset_sizes, accuracies_committee[i], label=f"{i*2} models")
+
+    plt.legend()
+
+    plt.savefig("figs/accuracy.pdf")
+
+if __name__ == "__main__":
+    plot_accuracies()
