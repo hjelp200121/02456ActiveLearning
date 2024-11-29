@@ -5,6 +5,7 @@ import torch.utils.data
 import torch.nn as nn
 import torchvision
 
+import optuna
 import time
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
@@ -57,11 +58,8 @@ class ClusterMargin:
         
         labels = torch.tensor(clustering.labels_)[margin_sample]
 
-        clusters = [margin_sample[labels == l] for l in labels.unique()]
-        clusters.sort(key=lambda c: c.size(0))
-
-        for i in range(len(clusters)):
-            clusters[i] = clusters[i].tolist()
+        clusters = [margin_sample[labels == l].tolist() for l in labels.unique()]
+        clusters.sort(key=len)
 
         j = 0
         cluster_sample = []
@@ -103,10 +101,13 @@ class ClusterMargin:
         return margin_scores, embeddings
 
 
+
+    
 if __name__ == "__main__":
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
+    print(f"device: {device}")
+
     transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5,), (0.5,))
@@ -116,39 +117,59 @@ if __name__ == "__main__":
 
     train_set = torch.utils.data.Subset(train_set, [i for i in range(20000)])
     
-    # seed_sample_fracs = [0.2, 0.3, 0.4, 0.5]
-    # clusters_per_sample = [1.5, 3.0, 5.0, 10.0]
-    # cluster_count = [10, 40, 70, 100]
-
     torch.manual_seed(1234)
+
+    trials = 8
+
+    seed_sample_fracs = [0.1, 0.2, 0.3, 0.4]
+    clusters_per_samples = [1.5, 3.0, 5.0, 10.0]
+    cluster_counts = [10, 40, 70, 100]
+
+    accuracies = torch.empty([len(seed_sample_fracs), len(clusters_per_samples), len(cluster_counts), trials])
+    times = torch.empty([len(seed_sample_fracs), len(clusters_per_samples), len(cluster_counts), trials])
+
+    def run(seed_sample_frac, clusters_per_sample, cluster_count):
+        print(f"seed_sample_frac: {seed_sample_frac:.1f}, clusters_per_sample: {clusters_per_sample:.1f}, cluster_count: {cluster_count}")
+
+        accuracies = []
+        times = []
+
+        for trial in range(trials):
+            model = create_model().to(device)
+
+            t0 = time.time()
+            subset = ClusterMargin(model, device, 1000, seed_sample_frac, clusters_per_sample, cluster_count).select_subset(train_set)
+            t1 = time.time()
+
+            train(model, subset, device)
+            accuracies.append(test(model, test_set, device))
+            times.append(t1 - t0)
+
+            print(f"trial: {trial}, accuracy: {accuracies[-1]}, time: {times[-1]}")
+
+        accuracies = torch.tensor(accuracies)
+        times = torch.tensor(times)
+
+        print(f"accuracy mean: {accuracies.mean():.4f}, accuracy std: {accuracies.std():.4f}, time mean: {times.mean():.4f}, time std: {times.std():.4f}")
+        print()
+
+        return accuracies, times
 
     # original:
     # accuracy mean: 0.9424, accuracy std: 0.0034, time mean: 24.4212, time std: 0.2470
 
-    accuracies = []
-    times = []
+    for i, seed_sample_frac in enumerate(seed_sample_fracs):
+        for j, clusters_per_sample in enumerate(clusters_per_samples):
+            for k, cluster_count in enumerate(cluster_counts):
 
-    for i in tqdm(range(10)):
-        model = create_model().to(device)
+                a, t = run(seed_sample_frac, clusters_per_sample, cluster_count)
 
-        t0 = time.time()
-        subset = ClusterMargin(model, device, sample_size=5000, seed_sample_frac=0.2, clusters_per_sample=3, cluster_count=100).select_subset(train_set)
-        t1 = time.time()
+                accuracies[i,j,k,:] = a
+                times[i,j,k,:] = t
 
-        train(model, subset, device)
-        accuracies.append(test(model, test_set, device))
-        times.append(t1 - t0)
-
-    accuracies = torch.tensor(accuracies)
-    times = torch.tensor(times)
-
-    print(f"accuracy mean: {accuracies.mean():.4f}, accuracy std: {accuracies.std():.4f}, time mean: {times.mean():.4f}, time std: {times.std():.4f}")
-
-
-
-
-
-
+    torch.save(accuracies, "results/parameter_accuracies.pt")
+    torch.save(times, "results/parameter_times.pt")
+    
 
 
 

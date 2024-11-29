@@ -18,13 +18,20 @@ def select_uniform_random(device, dataset, size):
     return UniformRandom(size).select_subset(dataset)
 
 def select_cluster_margin(device, dataset, size):
-    seed_sample_size = int(0.2 * size)
-    cluster_sample_size = size - seed_sample_size
-    margin_sample_size = int(1.5 * cluster_sample_size)
-
+    
     model = create_model().to(device)
 
-    return  ClusterMargin(model, device, seed_sample_size, cluster_sample_size, margin_sample_size).select_subset(dataset)
+    # params found by optuna
+    cm = ClusterMargin(
+        model,
+        device,
+        sample_size=size,
+        cluster_count=35,
+        seed_sample_frac=0.29556213082513294,
+        clusters_per_sample=2.0174904696016838,
+    )
+
+    return  cm.select_subset(dataset)
 
 def select_committee(device, dataset, size):
     num_models = 4
@@ -97,9 +104,9 @@ if __name__ == "__main__":
 
     torch.manual_seed(1234)
 
-    generate_accuracies(select_cluster_margin, "cluster_margin")
+    for i in range(0, 3):
+        generate_accuracies(select_cluster_margin, f"cluster_margin_{i}")
 
-    
-    plot_accuracies()
+    # plot_accuracies()
 
 
