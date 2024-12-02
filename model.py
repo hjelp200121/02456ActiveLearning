@@ -23,10 +23,7 @@ def train(model, train_set, device):
 
     step = 0
     while True:
-        for image, target in iter(loader):
-            if image.size()[0] == 1:
-                continue
-            
+        for image, target in iter(loader):  
             image, target = image.to(device), target.to(device)
 
             output = model(image)
