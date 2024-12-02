@@ -5,15 +5,17 @@ from model import train
 
 class Committee:
 
-    def __init__(self, models, device, seed_sample_size=20, vote_size=80):
+    def __init__(self, models, device, use_soft=True, seed_sample_size=20, vote_size=80):
         self.models = models
         
         self.device = device
+        self.use_soft = use_soft
 
         self.seed_sample_size = seed_sample_size
         self.vote_size = vote_size
     
     def query_hard(self, train_set, num_classes=10, batch_size=32):
+        #Using normalized vote entropy to quantify the disagreement between the models on all the samples in the training set
         with torch.no_grad():
             l = len(self.models)
             loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=False, drop_last=False, num_workers=3)
@@ -63,7 +65,6 @@ class Committee:
 
     def select_subset(self, dataset):
 
-        
         # uniformly select seed_size datapoints to label 
         seed_sample = torch.randperm(len(dataset))[:self.seed_sample_size]
         subset = torch.utils.data.Subset(dataset, seed_sample)
@@ -72,12 +73,15 @@ class Committee:
         for i in range(len(self.models)):
             train(self.models[i], subset, self.device)
         
-        #Using normalized vote entropy to quantify the disagreement between the models on all the samples in the training set
-        disagreementMatrix = self.query_hard(dataset, 10, 32)
+        #Use a metric to determine how much the models agree
+        if self.use_soft:
+            disagreementMatrix = self.query_soft(dataset, 10, 32)
+            _, vote_sample = disagreementMatrix.topk(self.vote_size, largest=False)
+        else:
+            disagreementMatrix = self.query_hard(dataset, 10, 32)
+            _, vote_sample = disagreementMatrix.topk(self.vote_size, largest=True)
 
-        _, vote_sample = disagreementMatrix.topk(self.vote_size, largest=False)
-
-        sample = torch.concat([seed_sample, vote_sample])
+        sample = torch.concat([seed_sample, vote_sample.cpu()])
         sub = torch.utils.data.Subset(dataset, sample)
 
         return sub
@@ -105,4 +109,4 @@ if __name__ == "__main__":
 
     train_set = torch.utils.data.Subset(train_set, [i for i in range(10000)])
     
-    subset = Committee(models, device, seed_sample_size=200, vote_size=800).select_subset(train_set)
+    subset = Committee(models, device, False, seed_sample_size=200, vote_size=800).select_subset(train_set)

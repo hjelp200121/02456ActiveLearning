@@ -41,7 +41,7 @@ def select_committee(device, dataset, size):
 
     models = [create_model().to(device) for i in range(num_models)]
     
-    return Committee(models, device, seed_sample_size, vote_size).select_subset(dataset)
+    return Committee(models, device, False, seed_sample_size, vote_size).select_subset(dataset)
 
 
 def generate_accuracies(select_fn, name):
@@ -77,15 +77,15 @@ def generate_accuracies(select_fn, name):
     torch.save(torch.tensor(accuracies), f"results/accuracies_{name}.pt")
 
 def load_accuracies(name):
-    accuracies = torch.stack([torch.load(f"results/accuracies_{name}_{i}.pt", weights_only=True) for i in range(10)])
+    accuracies = torch.stack([torch.load(f"results/accuracies_{name}_{i}.pt", weights_only=True) for i in range(1)])
     return accuracies.mean(dim=0), accuracies.std(dim=0)
 
 def plot_accuracies():
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
 
-    names = ["uniform_random", "cluster_margin"]
-    labels = ["Uniform", "Cluster-Margin"]
+    names = ["uniform_random", "cluster_margin","committee_soft"]
+    labels = ["Uniform", "Cluster-Margin","Committee (Hard)"]
 
     subset_sizes = np.linspace(100, 5000, 20, dtype=np.int32)
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     torch.manual_seed(1234)
 
     for i in range(0, 1):
-        generate_accuracies(select_committee, f"committee_{i}")
+        generate_accuracies(select_committee, f"committee_hard_{i}")
 
     #plot_accuracies()
 

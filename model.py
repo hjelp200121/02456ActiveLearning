@@ -12,12 +12,12 @@ def create_model():
 
 def train(model, train_set, device):
 
-    num_steps = 350
+    num_steps = 250
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     criterion = nn.CrossEntropyLoss()
 
-    loader = torch.utils.data.DataLoader(train_set, 32, shuffle=True, drop_last=False, num_workers=3)
+    loader = torch.utils.data.DataLoader(train_set, 32, shuffle=True, drop_last=True, num_workers=3)
 
     model.train()
 
