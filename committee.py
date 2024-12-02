@@ -22,7 +22,7 @@ class Committee:
                 self.models[i].eval()
 
             #Create disagreement Array
-            disagreement_array = torch.empty(len(train_set))
+            disagreement_array = torch.empty(len(train_set),device=self.device)
 
             for i, (image, _) in enumerate(iter(loader)):
                 image = image.to(self.device)
@@ -48,7 +48,7 @@ class Committee:
                 self.models[i].eval()
 
             #Create disagreement Array
-            disagreement_array = torch.empty(len(train_set))
+            disagreement_array = torch.empty(len(train_set), device=self.device)
 
             for i, (image, _) in enumerate(iter(loader)):
                 image = image.to(self.device)

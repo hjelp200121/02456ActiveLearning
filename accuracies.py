@@ -84,8 +84,8 @@ def plot_accuracies():
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
 
-    names = ["uniform_random"]
-    labels = ["Uniform"]
+    names = ["uniform_random", "cluster_margin"]
+    labels = ["Uniform", "Cluster-Margin"]
 
     subset_sizes = np.linspace(100, 5000, 20, dtype=np.int32)
 
@@ -104,9 +104,9 @@ if __name__ == "__main__":
 
     torch.manual_seed(1234)
 
-    for i in range(0, 3):
-        generate_accuracies(select_cluster_margin, f"cluster_margin_{i}")
+    for i in range(0, 1):
+        generate_accuracies(select_committee, f"committee_{i}")
 
-    # plot_accuracies()
+    #plot_accuracies()
 
 
