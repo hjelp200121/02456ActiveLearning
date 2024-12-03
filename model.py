@@ -12,7 +12,7 @@ def create_model():
 
 def train(model, train_set, device):
 
-    num_steps = 25
+    num_steps = 250
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     criterion = nn.CrossEntropyLoss()

@@ -56,14 +56,14 @@ if __name__ == "__main__":
         seed_sample_size = int(seed_sample_frac*oneThousaindDanishDollars)
         vote_size = oneThousaindDanishDollars - seed_sample_size
 
-        subset = Committee(models, device, False, seed_sample_size, vote_size).select_subset(train_set)
+        subset = Committee(models, device, True, seed_sample_size, vote_size).select_subset(train_set)
 
         train(model, subset, device)
         accuracy = test(model, val_set, device)
 
         return accuracy
 
-    study_name = "committee_hard_parameters"
+    study_name = "committee_soft_parameters"
     storage = f"sqlite:///{study_name}.db"
 
     study = optuna.create_study(study_name=study_name, direction='maximize', storage=storage, load_if_exists=True)

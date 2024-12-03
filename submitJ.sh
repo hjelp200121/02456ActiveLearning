@@ -2,7 +2,7 @@
 ### General options 
 
 ### -- specify queue -- 
-#BSUB -q gpua40
+#BSUB -q gpua10
 #BSUB -gpu "num=1"
 
 ### -- set the job Name -- 
