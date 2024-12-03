@@ -14,6 +14,12 @@ from cluster_margin import ClusterMargin
 from uniform_random import UniformRandom
 from committee import Committee
 
+def split_whole_batches(size, frac):
+    x = int(round(frac * size / 32)) * 32
+
+    return x, size - x
+
+
 def select_uniform_random(device, dataset, size):
     return UniformRandom(size).select_subset(dataset)
 
@@ -22,24 +28,25 @@ def select_cluster_margin(device, dataset, size):
     model = create_model().to(device)
 
     # params found by optuna
-    cm = ClusterMargin(
-        model,
-        device,
-        sample_size=size,
-        cluster_count=35,
-        seed_sample_frac=0.29556213082513294,
-        clusters_per_sample=2.0174904696016838,
-    )
+    seed_sample_frac = 0.29556213082513294
+    cluster_count=35
+    suggestions_per_sample=2.0174904696016838
+
+    # split at nearest 32 to avoid having partial batches
+    seed_sample_size, cm_sample_size = split_whole_batches(size, seed_sample_frac) 
+    suggestion_size = int(suggestions_per_sample * cm_sample_size)
+
+    cm = ClusterMargin(model, device, seed_sample_size, cm_sample_size, suggestion_size, cluster_count)
 
     return  cm.select_subset(dataset)
 
 def select_committee(device, dataset, size):
     num_models = 4
 
-    seed_sample_size = int(0.2 * size)
-    vote_size = size - seed_sample_size
-
-    models = [create_model().to(device) for _ in range(num_models)]
+    # split at nearest 32 to avoid having partial batches
+    seed_sample_size, vote_size = split_whole_batches(size, 0.2) 
+       
+    models = [create_model().to(device) for i in range(num_models)]
     
     return Committee(models, device, False, seed_sample_size, vote_size).select_subset(dataset)
 
@@ -59,8 +66,8 @@ def generate_accuracies(select_fn, name):
     indices = torch.randperm(len(train_set))
     val_set = torch.utils.data.Subset(train_set, indices[:val_size])
     train_set = torch.utils.data.Subset(train_set, indices[val_size:])
-
-    subset_sizes = np.linspace(100, 5000, 20, dtype=np.int32)
+    
+    subset_sizes = [256 * i for i in range(1, 21)]
     
     accuracies = []
 
@@ -87,7 +94,7 @@ def plot_accuracies():
     names = ["uniform_random", "cluster_margin", "committee_soft", "committee_hard"]
     labels = ["Uniform", "Cluster-Margin", "Committee (Soft)", "Committee (Hard)"]
 
-    subset_sizes = np.linspace(100, 5000, 20, dtype=np.int32)
+    subset_sizes = [256 * i for i in range(1, 21)]
 
     for name, label in zip(names, labels):
         mean, std = load_accuracies(name)

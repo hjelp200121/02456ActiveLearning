@@ -29,13 +29,13 @@ def inv_perm(perm):
 
 class ClusterMargin:
 
-    def __init__(self, model, device, sample_size, seed_sample_frac, clusters_per_sample, cluster_count):
+    def __init__(self, model, device, seed_sample_size, cm_sample_size, suggestion_size, cluster_count):
         self.model = model
         self.device = device
 
-        self.seed_sample_size = int(seed_sample_frac * sample_size)
-        self.cluster_sample_size = sample_size - self.seed_sample_size
-        self.margin_sample_size = int(clusters_per_sample * self.cluster_sample_size)
+        self.seed_sample_size = seed_sample_size
+        self.cm_sample_size = cm_sample_size
+        self.suggestion_size = suggestion_size
         self.cluster_count = cluster_count
 
     def select_subset(self, dataset):
@@ -53,7 +53,7 @@ class ClusterMargin:
         margin_scores, embeddings = self._compute_margin_scores_and_embeddings(dataset)
         clustering = AgglomerativeClustering(n_clusters=self.cluster_count).fit(embeddings.cpu())
 
-        _, margin_sample = margin_scores[not_seed_sample].cpu().topk(self.margin_sample_size, largest=False)
+        _, margin_sample = margin_scores[not_seed_sample].cpu().topk(self.suggestion_size, largest=False)
         margin_sample = not_seed_sample[margin_sample] # rema from not seed pool to entire dataset
         
         labels = torch.tensor(clustering.labels_)[margin_sample]
@@ -63,7 +63,7 @@ class ClusterMargin:
 
         j = 0
         cluster_sample = []
-        while len(cluster_sample) + 1 < self.cluster_sample_size:
+        while len(cluster_sample) < self.cm_sample_size:
             try:
                 index = clusters[j].pop()
                 cluster_sample.append(index)
@@ -73,7 +73,7 @@ class ClusterMargin:
             j = (j + 1) % len(labels.unique())
 
         sample = torch.concat([seed_sample, torch.tensor(cluster_sample, dtype=torch.int64)])
-
+        
         return torch.utils.data.Subset(dataset, sample)
 
 
