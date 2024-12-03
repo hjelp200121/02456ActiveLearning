@@ -26,4 +26,4 @@
 
 ### source ~/courses/02516/02516env/bin/activate
 source ~/guttegaming/bin/activate
-python3 test.py
+python3 committee_optimize.py

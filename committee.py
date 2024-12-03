@@ -44,9 +44,10 @@ class Committee:
         
     def query_soft(self, train_set, num_classes=10, batch_size=32):
         with torch.no_grad():
+            l = len(self.models)
             loader = torch.utils.data.DataLoader(train_set, batch_size, shuffle=False, drop_last=False, num_workers=3)
 
-            for i in range(len(self.models)):
+            for i in range(l):
                 self.models[i].eval()
 
             #Create disagreement Array
@@ -55,11 +56,15 @@ class Committee:
             for i, (image, _) in enumerate(iter(loader)):
                 image = image.to(self.device)
                 prediction = torch.zeros((len(image),num_classes)).to(self.device)
-                for j in range(len(self.models)):
+                for j in range(l):
                     prediction += self.models[j](image).softmax(dim=1)
+                prediction = prediction/l
 
-                pm, _ = prediction.max(axis=1)
-                disagreement_array[i*batch_size:i*batch_size+prediction.size(dim=0)] = pm
+                Hp = torch.zeros(len(image)).to(self.device)
+                for j in range(num_classes):
+                    Hp -= prediction[:,j]*torch.log(prediction[:,j])
+
+                disagreement_array[i*batch_size:i*batch_size+prediction.size(dim=0)] = Hp
 
             return disagreement_array
 
@@ -76,11 +81,10 @@ class Committee:
         #Use a metric to determine how much the models agree
         if self.use_soft:
             disagreementMatrix = self.query_soft(dataset, 10, 32)
-            _, vote_sample = disagreementMatrix.topk(self.vote_size, largest=False)
         else:
             disagreementMatrix = self.query_hard(dataset, 10, 32)
-            _, vote_sample = disagreementMatrix.topk(self.vote_size, largest=True)
-
+        
+        _, vote_sample = disagreementMatrix.topk(self.vote_size, largest=True)
         sample = torch.concat([seed_sample, vote_sample.cpu()])
         sub = torch.utils.data.Subset(dataset, sample)
 
@@ -108,5 +112,5 @@ if __name__ == "__main__":
     test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
     train_set = torch.utils.data.Subset(train_set, [i for i in range(10000)])
-    
-    subset = Committee(models, device, False, seed_sample_size=200, vote_size=800).select_subset(train_set)
+
+    subset = Committee(models, device, True, seed_sample_size=200, vote_size=800).select_subset(train_set)
