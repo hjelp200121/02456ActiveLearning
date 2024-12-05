@@ -36,7 +36,7 @@ class Committee:
 
                 for j in range(num_classes):
                     Vc = (stack == j).sum(axis=0)
-                    arr += Vc/4*torch.log(Vc.clamp(min=1)/l)
+                    arr += Vc/l*torch.log(Vc.clamp(min=1)/l)
 
                 disagreement_array[i*batch_size:i*batch_size+prediction[0].size(dim=0)] = -arr/torch.log(torch.tensor(l))
 
@@ -62,7 +62,7 @@ class Committee:
 
                 Hp = torch.zeros(len(image)).to(self.device)
                 for j in range(num_classes):
-                    Hp -= prediction[:,j]*torch.log(prediction[:,j])
+                    Hp -= prediction[:,j]*torch.log(prediction[:,j].clamp(min=1e-9))
 
                 disagreement_array[i*batch_size:i*batch_size+prediction.size(dim=0)] = Hp
 
