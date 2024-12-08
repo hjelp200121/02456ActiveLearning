@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import matplotlib.colorbar as colorbar
 from matplotlib.colors import Normalize
 
 import torch
@@ -99,10 +98,10 @@ def generate_losses_per_step():
 def plot_losses_per_step():
     losses = torch.load("results/losses_per_step.pt", weights_only=True)
     
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(7.5, 4.8))
 
-    ax.set_ylabel("Loss", fontsize=12)
-    ax.set_xlabel("Number of steps", fontsize=12)
+    ax.set_ylabel("Validation Loss", fontsize=16)
+    ax.set_xlabel("Number of steps", fontsize=16)
     
     colormap = cm.viridis
 
@@ -123,18 +122,19 @@ def plot_losses_per_step():
         ax.plot(num_steps, size_losses_np, label=f"Size={subset_size}", color=color)
 
     plt.grid(alpha=0.3)
+    plt.title('Loss evolution', fontsize=20)
 
     sm = plt.cm.ScalarMappable(cmap=colormap, norm=norm)
     sm.set_array([]) 
     cbar = plt.colorbar(sm, ax=ax)
-    cbar.set_label("Subset size", fontsize=12)
+    cbar.set_label("Subset size", fontsize=16)
 
-    plt.savefig("figs/losses_per_step.pdf")
+    plt.savefig("figs/test_losses_per_step.pdf")
 
 
 
 if __name__ == "__main__":
 
-    generate_losses_per_step()
+    # generate_losses_per_step()
     plot_losses_per_step()
 
