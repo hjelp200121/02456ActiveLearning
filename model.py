@@ -38,8 +38,8 @@ def train(model, train_set, device):
             if step >= num_steps:
                 return
 
+@torch.no_grad()
 def test(model, test_set, device):
-
     loader = torch.utils.data.DataLoader(test_set, 32, shuffle=False, drop_last=False, num_workers=3)
 
     model.eval()

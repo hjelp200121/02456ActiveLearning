@@ -1,7 +1,7 @@
 import torch
 import torch.utils
 import torch.utils.data
-from model import train
+from model import train, test
 
 class Committee:
 
@@ -89,24 +89,41 @@ class Committee:
 if __name__ == "__main__":
     import torchvision
     import torch.nn as nn
-    num_models = 4
+    from tqdm import tqdm
+
+    from model import create_model
+    
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    models = [None]*num_models
-    for i in range(num_models):
-        models[i] = torchvision.models.resnet18()
-        models[i].fc = torch.nn.Linear(models[i].fc.in_features, 10)
-        models[i].conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-        models[i] = models[i].to(device)
+    size = 1024
+    seed_sample_size = 256
+    vote_size = size - seed_sample_size
     
+
     transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5,), (0.5,))
     ])
     train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-
-    train_set = torch.utils.data.Subset(train_set, [i for i in range(10000)])
     
-    subset = Committee(models, device, False, seed_sample_size=200, vote_size=800).select_subset(train_set)
+    perm = torch.randperm(len(train_set))
+    val_size = 10000
+    val_set = torch.utils.data.Subset(train_set, perm[:val_size])
+    train_set = torch.utils.data.Subset(train_set, perm[val_size:])
+
+    for num_models in range(2, 10):
+
+        accuracies = []
+
+        for _ in tqdm(range(10)):
+            model = create_model().to(device)
+            models = [create_model().to(device) for i in range(num_models)]
+            
+            subset = Committee(models, device, False, seed_sample_size, vote_size).select_subset(train_set)
+            train(model, subset, device)
+
+            accuracy = test(model, val_set, device)
+            accuracies.append(accuracy)
+        
+        print(torch.tensor(accuracies).mean())

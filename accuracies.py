@@ -7,7 +7,9 @@ import torchvision
 import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
+from glob import glob
 from tqdm import tqdm
+
 
 from model import create_model, train, test
 from cluster_margin import ClusterMargin
@@ -18,7 +20,6 @@ def split_whole_batches(size, frac):
     x = int(round(frac * size / 32)) * 32
 
     return x, size - x
-
 
 def select_uniform_random(device, dataset, size):
     return UniformRandom(size).select_subset(dataset)
@@ -84,25 +85,38 @@ def generate_accuracies(select_fn, name):
     torch.save(torch.tensor(accuracies), f"results/accuracies_{name}.pt")
 
 def load_accuracies(name):
-    accuracies = torch.stack([torch.load(f"results/accuracies_{name}_{i}.pt", weights_only=True) for i in range(1)])
-    return accuracies.mean(dim=0), accuracies.std(dim=0)
-
+    files = glob(f"results/accuracies_{name}_*.pt")
+    
+    if len(files) == 0:
+        return torch.empty([0, 20])
+    
+    return torch.stack([torch.load(file, weights_only=True) for file in files])
+    
 def plot_accuracies():
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
 
-    names = ["uniform_random", "cluster_margin","committee_soft"]
-    labels = ["Uniform", "Cluster-Margin","Committee (Hard)"]
+    names = ["uniform_random", "cluster_margin", "committee_soft"]
+    labels = ["Uniform", "Cluster-Margin", "Committee (Soft)"]
     
     subset_sizes = [256 * i for i in range(1, 21)]
 
     for name, label in zip(names, labels):
-        mean, std = load_accuracies(name)
 
-        plt.errorbar(subset_sizes, mean, std, label=label)
+        accuracies = load_accuracies(name)
+
+        if accuracies.size(0) == 1:
+            plt.plot(subset_sizes, accuracies[0,:], std, label=label)
+
+        if accuracies.size(0) > 1:
+            mean = accuracies.mean(dim=0)
+            std = accuracies.std(dim=0)
+
+            plt.errorbar(subset_sizes, mean, std, label=label)
+
 
     plt.legend()
-
+    plt.grid(alpha=0.3)
     plt.savefig("figs/accuracy.pdf")
 
 
@@ -110,10 +124,13 @@ def plot_accuracies():
 if __name__ == "__main__":
 
     torch.manual_seed(1234)
-    
-    for i in range(0, 3):
-        generate_accuracies(select_cluster_margin, f"cluster_margin_{i}")
 
-    #plot_accuracies()
+    # for i in range(10):
+    #     generate_accuracies(select_uniform_random, f"uniform_random_{i}")
+    
+    # for i in range(9, 10):
+    #     generate_accuracies(select_cluster_margin, f"cluster_margin_{i}")
+
+    plot_accuracies()
 
 
