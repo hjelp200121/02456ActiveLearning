@@ -1,0 +1,18 @@
+\documentclass[tikz, 12pt]{standalone}
+
+\begin{document}
+
+\begin{tikzpicture}
+
+    \node[rectangle] (input) at (0, 0) {\includegraphics{input.pdf}};
+    \node[rectangle] (embedded) at (9, 0) {\includegraphics{embedded.pdf}};
+    \node[rectangle] (clustered) at (0, -7.5) {\includegraphics{clustered.pdf}};
+    \node[rectangle] (filtered) at (9, -7.5) {\includegraphics{margin_filtered.pdf}};
+    \node[rectangle] (roundrobin) at (4.5, -15) {\includegraphics{round_robin.pdf}};
+
+    \draw[thick, ->] (input) -- (embedded) node[pos=0.5, anchor=south] {Embed};
+    \draw[thick, ->] (embedded) -- (clustered) node[pos=0.3, anchor=east, inner sep=0.4cm] {HAG};
+    \draw[thick, ->] (clustered) -- (filtered) node[pos=0.5, anchor=north, align=center] {Lowest\\margin\\scores};
+    \draw[thick, ->] (filtered) -- (roundrobin) node[pos=0.4, anchor=east, inner sep=0.2cm, align=center] {Sort by size\\acending};
+\end{tikzpicture}
+\end{document}

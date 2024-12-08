@@ -96,9 +96,9 @@ def plot_accuracies():
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
 
-    names = ["uniform_random", "cluster_margin", "committee_soft"]
-    labels = ["Uniform", "Cluster-Margin", "Committee (Soft)"]
-    
+    names = ["uniform_random", "cluster_margin", "committee_soft", "committee_hard"]
+    labels = ["Uniform", "Cluster-Margin", "Committee (Soft)", "Committee (Hard)"]
+
     subset_sizes = [256 * i for i in range(1, 21)]
 
     for name, label in zip(names, labels):

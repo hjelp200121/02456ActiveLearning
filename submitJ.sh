@@ -2,7 +2,7 @@
 ### General options 
 
 ### -- specify queue -- 
-#BSUB -q gpua40
+#BSUB -q gpua10
 #BSUB -gpu "num=1"
 
 ### -- set the job Name -- 
@@ -26,4 +26,4 @@
 
 ### source ~/courses/02516/02516env/bin/activate
 source ~/guttegaming/bin/activate
-python3 test.py
+python3 committee_optimize.py
