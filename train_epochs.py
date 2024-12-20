@@ -103,7 +103,7 @@ def plot_losses_per_step():
     ax.set_ylabel("Validation Loss", fontsize=16)
     ax.set_xlabel("Number of steps", fontsize=16)
     
-    colormap = cm.viridis
+    colormap = cm.summer
 
     num_graphs = 8
 

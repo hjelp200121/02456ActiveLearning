@@ -41,14 +41,14 @@ def select_cluster_margin(device, dataset, size):
     return  cm.select_subset(dataset)
 
 def select_committee(device, dataset, size):
-    num_models = 4
+    num_models = 2
 
     # split at nearest 32 to avoid having partial batches
-    seed_sample_size, vote_size = split_whole_batches(size, 0.2) 
+    seed_sample_size, vote_size = split_whole_batches(size, 0.4) 
        
     models = [create_model().to(device) for i in range(num_models)]
     
-    return Committee(models, device, False, seed_sample_size, vote_size).select_subset(dataset)
+    return Committee(models, device, True, seed_sample_size, vote_size).select_subset(dataset)
 
 
 def generate_accuracies(select_fn, name):
@@ -91,8 +91,10 @@ def plot_accuracies():
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
 
-    names = ["uniform_random", "cluster_margin", "committee_soft", "committee_hard"]
-    labels = ["Uniform", "Cluster-Margin", "Committee (Soft)", "Committee (Hard)"]
+    # names = ["uniform_random", "cluster_margin", "committee_soft", "committee_hard"]
+    # labels = ["Uniform", "Cluster-Margin", "Committee (Soft)", "Committee (Hard)"]
+    names = ["committee_soft"]
+    labels = ["Committee (Soft)"]
 
     subset_sizes = [256 * i for i in range(1, 21)]
 
@@ -103,7 +105,7 @@ def plot_accuracies():
 
     plt.legend()
 
-    plt.savefig("figs/accuracy.pdf")
+    plt.savefig("figs/accuracy_committee_soft.pdf")
 
 
 
@@ -111,8 +113,10 @@ if __name__ == "__main__":
 
     torch.manual_seed(1234)
 
-    # for i in range(0, 1):
-    #     generate_accuracies(select_committee, f"committee_hard_{i}")
+    # for i in range(0, 10):
+    #     generate_accuracies(select_committee, f"committee_soft_{i}")
+
+    # generate_accuracies(select_committee, f"committee_soft_{i}")
 
     plot_accuracies()
 
