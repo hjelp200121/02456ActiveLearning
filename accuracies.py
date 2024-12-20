@@ -51,7 +51,7 @@ def select_committee(device, dataset, size):
        
     models = [create_model().to(device) for i in range(num_models)]
     
-    return Committee(models, device, False, seed_sample_size, vote_size).select_subset(dataset)
+    return Committee(models, device, True, seed_sample_size, vote_size).select_subset(dataset)
 
 
 def generate_accuracies(select_fn, name):
