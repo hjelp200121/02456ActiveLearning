@@ -6,7 +6,7 @@ import torch.nn as nn
 def create_model():
     model = torchvision.models.resnet18()
     model.fc = torch.nn.Linear(model.fc.in_features, 10)
-    model.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     
     return model
 
@@ -38,8 +38,8 @@ def train(model, train_set, device):
             if step >= num_steps:
                 return
 
+@torch.no_grad()
 def test(model, test_set, device):
-
     loader = torch.utils.data.DataLoader(test_set, 32, shuffle=False, drop_last=False, num_workers=3)
 
     model.eval()

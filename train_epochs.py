@@ -1,11 +1,14 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from matplotlib.colors import Normalize
+
 import torch
 import torchvision
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 from model import create_model
 from uniform_random import UniformRandom
@@ -35,15 +38,18 @@ def generate_losses_per_step():
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5,), (0.5,))
     ])
-    train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    # test_set = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+    train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    # test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
     val_size = int(0.1 * len(train_set))
     indices = torch.randperm(len(train_set))
     val_set = torch.utils.data.Subset(train_set, indices[:val_size])
     train_set = torch.utils.data.Subset(train_set, indices[val_size:])
     
-    subset_sizes = np.linspace(100, 5000, 20, dtype=np.int32)
+    num_graphs = 8
+    subset_sizes = [256 + 256*3*i for i in range(num_graphs-1)]
+    subset_sizes.append(20*256)
+
     num_steps = np.arange(0, 425, 25, dtype=np.int32)
     
     val_loader = DataLoader(val_set, 32, shuffle=False, drop_last=False, num_workers=3)
@@ -91,23 +97,44 @@ def generate_losses_per_step():
 
 def plot_losses_per_step():
     losses = torch.load("results/losses_per_step.pt", weights_only=True)
+    
+    fig, ax = plt.subplots(figsize=(7.5, 4.8))
 
-    plt.ylabel("Loss")
-    plt.xlabel("Number of steps")
+    ax.set_ylabel("Validation Loss", fontsize=16)
+    ax.set_xlabel("Number of steps", fontsize=16)
     
-    subset_sizes = np.linspace(100, 5000, 20, dtype=np.int32)
+    colormap = cm.summer
+
+    num_graphs = 8
+
+    subset_sizes = [256 + 256*3*i for i in range(num_graphs-1)]
+    subset_sizes.append(20*256)
+
     num_steps = np.arange(0, 425, 25, dtype=np.int32)
+
+    #Normalize the color range for the number of graphs
+    norm = Normalize(vmin=np.min(subset_sizes), vmax=np.max(subset_sizes))
+    colors = colormap(np.linspace(0, 1, num_graphs))
     
-    for i, subset_size in enumerate(subset_sizes):
+    for i, (subset_size, color) in enumerate(zip(subset_sizes, colors)):
 
         size_losses_np = losses[i,:].numpy()
-        plt.plot(num_steps, size_losses_np, label=f"Size={subset_size}")
+        ax.plot(num_steps, size_losses_np, label=f"Size={subset_size}", color=color)
 
-    plt.savefig("figs/losses_per_step.pdf")
+    plt.grid(alpha=0.3)
+    plt.title('Loss evolution', fontsize=20)
+
+    sm = plt.cm.ScalarMappable(cmap=colormap, norm=norm)
+    sm.set_array([]) 
+    cbar = plt.colorbar(sm, ax=ax)
+    cbar.set_label("Subset size", fontsize=16)
+
+    plt.savefig("figs/test_losses_per_step.pdf")
 
 
 
 if __name__ == "__main__":
 
-    generate_losses_per_step()
+    # generate_losses_per_step()
     plot_losses_per_step()
+

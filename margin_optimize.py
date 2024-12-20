@@ -10,7 +10,8 @@ import optuna
 import numpy as np
 
 from model import create_model, train, test
-from cluster_margin import ClusterMargin
+from margin import Margin
+
 
 import random
 
@@ -38,30 +39,33 @@ if __name__ == "__main__":
         T.Normalize((0.5,), (0.5,))
     ])
     train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
-    train_set = torch.utils.data.Subset(train_set, [i for i in range(10000)])
     val_set = torch.utils.data.Subset(train_set, [i for i in range(10000, 20000)])
+    train_set = torch.utils.data.Subset(train_set, [i for i in range(10000)])
+
+    subset_size = 1024
 
     def objective(trial):
 
-        seed_sample_frac = trial.suggest_float('seed_sample_frac', 0.1, 0.4)
-        suggestions_per_sample= trial.suggest_float('suggestions_per_sample', 1.5, 10.0)
-        cluster_count = trial.suggest_int('cluster_count', 10, 100, step=5)
+        seed_sample_size = 32 * trial.suggest_int('seed_sample_batches', 1, 16)
 
         seed_all(1234)
 
         model = create_model().to(device)
-
-        subset = ClusterMargin(model, device, 1000, seed_sample_frac, suggestions_per_sample, cluster_count).select_subset(train_set)
+        
+        subset = Margin(model, device, seed_sample_size, subset_size - seed_sample_size).select_subset(train_set)
 
         train(model, subset, device)
         accuracy = test(model, val_set, device)
-
+        
         return accuracy
 
-    study_name = "cluster_margin_parameters"
+    study_name = "margin_parameters"
     storage = f"sqlite:///{study_name}.db"
+    search_space = {
+        'seed_sample_batches': [i for i in range(1, 17)]
+    }
+    sampler = optuna.samplers.GridSampler(search_space)
 
-    study = optuna.create_study(study_name=study_name, direction='maximize', storage=storage, load_if_exists=True)
+    study = optuna.create_study(study_name=study_name, direction='maximize', storage=storage, load_if_exists=True, sampler=sampler)
     study.optimize(objective, timeout=9*60*60, show_progress_bar=False)

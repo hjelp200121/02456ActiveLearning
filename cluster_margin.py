@@ -112,8 +112,8 @@ if __name__ == "__main__":
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5,), (0.5,))
     ])
-    train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    test_set = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+    train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
     train_set = torch.utils.data.Subset(train_set, [i for i in range(20000)])
     
