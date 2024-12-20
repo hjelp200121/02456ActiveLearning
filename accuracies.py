@@ -85,15 +85,15 @@ def generate_accuracies(select_fn, name):
     torch.save(torch.tensor(accuracies), f"results/accuracies_{name}.pt")
 
 def load_accuracies(name):
-    accuracies = torch.stack([torch.load(f"results/accuracies_{name}_{i}.pt", weights_only=True) for i in range(10)])
+    accuracies = torch.stack([torch.load(f"results/accuracies_{name}_{i}.pt", weights_only=True) for i in range(9)])
     return accuracies.mean(dim=0), accuracies.std(dim=0)
 
 def plot_accuracies():
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
 
-    names = ["cfair_soft", "cfair_uniform2"]
-    labels = ["Committee (Soft)", "Uniform random"]
+    names = ["cfair_uniform2", "cfair_cluster", "cfair_soft", "cifar_committee_hard"]
+    labels = ["Uniform random", "Cluster margin", "Committee (Soft)", "Committee (Hard)"]
 
     subset_sizes = [256 * i for i in range(1, 21)]
 
