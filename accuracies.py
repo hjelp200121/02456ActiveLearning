@@ -6,7 +6,6 @@ import torch.utils.data
 import torchvision
 import numpy as np
 import matplotlib.pyplot as plt
-from copy import deepcopy
 from tqdm import tqdm
 
 from model import create_model, train, test
@@ -42,9 +41,11 @@ def select_cluster_margin(device, dataset, size):
 
 def select_committee(device, dataset, size):
     num_models = 2
+    seed_sample_frac = 0.23 #Hard
+    #seed_sample_frac = 0.4 #Soft
 
     # split at nearest 32 to avoid having partial batches
-    seed_sample_size, vote_size = split_whole_batches(size, 0.4) 
+    seed_sample_size, vote_size = split_whole_batches(size, seed_sample_frac) 
        
     models = [create_model().to(device) for i in range(num_models)]
     
@@ -59,8 +60,8 @@ def generate_accuracies(select_fn, name):
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5,), (0.5,))
     ])
-    train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+    train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    test_set = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
 
     val_size = int(0.1 * len(train_set))
     indices = torch.randperm(len(train_set))
@@ -84,17 +85,15 @@ def generate_accuracies(select_fn, name):
     torch.save(torch.tensor(accuracies), f"results/accuracies_{name}.pt")
 
 def load_accuracies(name):
-    accuracies = torch.stack([torch.load(f"results/accuracies_{name}_{i}.pt", weights_only=True) for i in range(1)])
+    accuracies = torch.stack([torch.load(f"results/accuracies_{name}_{i}.pt", weights_only=True) for i in range(10)])
     return accuracies.mean(dim=0), accuracies.std(dim=0)
 
 def plot_accuracies():
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
 
-    # names = ["uniform_random", "cluster_margin", "committee_soft", "committee_hard"]
-    # labels = ["Uniform", "Cluster-Margin", "Committee (Soft)", "Committee (Hard)"]
-    names = ["committee_soft"]
-    labels = ["Committee (Soft)"]
+    names = ["cfair_soft", "cfair_uniform2"]
+    labels = ["Committee (Soft)", "Uniform random"]
 
     subset_sizes = [256 * i for i in range(1, 21)]
 
@@ -105,7 +104,7 @@ def plot_accuracies():
 
     plt.legend()
 
-    plt.savefig("figs/accuracy_committee_soft.pdf")
+    plt.savefig("figs/cfair_accuracy.pdf")
 
 
 
@@ -113,11 +112,7 @@ if __name__ == "__main__":
 
     torch.manual_seed(1234)
 
-    # for i in range(0, 10):
-    #     generate_accuracies(select_committee, f"committee_soft_{i}")
-
-    # generate_accuracies(select_committee, f"committee_soft_{i}")
+    #for i in range(0, 10):
+    #  generate_accuracies(select_uniform_random, f"cfair_uniform2_{i}")
 
     plot_accuracies()
-
-
