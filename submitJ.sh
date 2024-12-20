@@ -26,4 +26,4 @@
 
 ### source ~/courses/02516/02516env/bin/activate
 source ~/guttegaming/bin/activate
-python3 committee_optimize.py
+python3 accuracies.py

@@ -6,7 +6,7 @@
 #BSUB -gpu "num=1"
 
 ### -- set the job Name -- 
-#BSUB -J mp
+#BSUB -J accuracies
 
 ### -- ask for number of cores (default: 1) -- 
 #BSUB -n 4
@@ -25,4 +25,4 @@
 #BSUB -e logs/output_%J.err 
 
 source ~/courses/02516/02516env/bin/activate
-python3 margin_parameters.py
+python3 accuracies.py

@@ -41,15 +41,15 @@ def plot_accuracies():
 
     model = torchvision.models.resnet18()
     model.fc = torch.nn.Linear(model.fc.in_features, 10)
-    model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+    model.conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     model = model.to(device)
     
     transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5,), (0.5,))
     ])
-    train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+    train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    test_set = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
 
     if True:
         train_set = torch.utils.data.Subset(train_set, [i for i in range(10000)])
@@ -97,7 +97,7 @@ def plot_accuracies():
         for i in range(num_models):
             models[i] = torchvision.models.resnet18()
             models[i].fc = torch.nn.Linear(models[i].fc.in_features, 10)
-            models[i].conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+            models[i].conv1 = torch.nn.Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
             models[i] = models[i].to(device)
 
         subset = Committee(models, train, device, seed_sample_size, vote_size).select_subset(train_set)

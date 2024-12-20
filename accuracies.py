@@ -4,9 +4,9 @@ import torch.nn as nn
 import torch.utils
 import torch.utils.data
 import torchvision
+
 import numpy as np
 import matplotlib.pyplot as plt
-from copy import deepcopy
 from glob import glob
 from tqdm import tqdm
 
@@ -42,10 +42,12 @@ def select_cluster_margin(device, dataset, size):
     return  cm.select_subset(dataset)
 
 def select_committee(device, dataset, size):
-    num_models = 4
+    num_models = 2
+    seed_sample_frac = 0.23 #Hard
+    #seed_sample_frac = 0.4 #Soft
 
     # split at nearest 32 to avoid having partial batches
-    seed_sample_size, vote_size = split_whole_batches(size, 0.2) 
+    seed_sample_size, vote_size = split_whole_batches(size, seed_sample_frac) 
        
     models = [create_model().to(device) for i in range(num_models)]
     
@@ -60,8 +62,8 @@ def generate_accuracies(select_fn, name):
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5,), (0.5,))
     ])
-    train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+    train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    test_set = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
 
     val_size = int(0.1 * len(train_set))
     indices = torch.randperm(len(train_set))
@@ -92,13 +94,14 @@ def load_accuracies(name):
     
     return torch.stack([torch.load(file, weights_only=True) for file in files])
     
+
 def plot_accuracies():
     plt.ylabel("Accuracy")
     plt.xlabel("Number of labelled points")
 
     names = ["uniform_random", "cluster_margin", "committee_soft", "committee_hard"]
-    labels = ["Uniform", "Cluster-Margin", "Committee (Soft)", "Committee (Hard)"]
-
+    labels = ["Uniform random", "Cluster-Margin", "Committee (Soft)", "Committee (Hard)"]
+    
     subset_sizes = [256 * i for i in range(1, 21)]
 
     for name, label in zip(names, labels):
@@ -112,12 +115,50 @@ def plot_accuracies():
             mean = accuracies.mean(dim=0)
             std = accuracies.std(dim=0)
 
-            plt.errorbar(subset_sizes, mean, std, label=label)
+            (_, caps, _) = plt.errorbar(subset_sizes, mean, std, capsize=3, elinewidth=0.5, label=label)
+
+            for cap in caps:
+                cap.set_markeredgewidth(0.5)
 
 
     plt.legend()
     plt.grid(alpha=0.3)
+
     plt.savefig("figs/accuracy.pdf")
+    plt.close()
+
+
+
+def plot_accuracies_cifar():
+    plt.ylabel("Accuracy")
+    plt.xlabel("Number of labelled points")
+
+    names = ["cfair_uniform2", "cfair_cluster", "cfair_soft", "cifar_committee_hard"]
+    labels = ["Uniform random", "Cluster-Margin", "Committee (Soft)", "Committee (Hard)"]
+    
+    subset_sizes = [256 * i for i in range(1, 21)]
+
+    for name, label in zip(names, labels):
+
+        accuracies = load_accuracies(name)
+
+        if accuracies.size(0) == 1:
+            plt.plot(subset_sizes, accuracies[0,:], std, label=label)
+
+        if accuracies.size(0) > 1:
+            mean = accuracies.mean(dim=0)
+            std = accuracies.std(dim=0)
+
+            (_, caps, _) = plt.errorbar(subset_sizes, mean, std, capsize=3, elinewidth=0.5, label=label)
+
+            for cap in caps:
+                cap.set_markeredgewidth(0.5)
+
+    plt.legend()
+    plt.grid(alpha=0.3)
+
+    plt.savefig("figs/cifar_accuracy.pdf")
+    plt.close()
 
 
 
@@ -125,12 +166,11 @@ if __name__ == "__main__":
 
     torch.manual_seed(1234)
 
-    # for i in range(10):
-    #     generate_accuracies(select_uniform_random, f"uniform_random_{i}")
-    
-    # for i in range(9, 10):
-    #     generate_accuracies(select_cluster_margin, f"cluster_margin_{i}")
+    #for i in range(0, 10):
+    #  generate_accuracies(select_uniform_random, f"cfair_uniform2_{i}")
+
+    # for i in range(0, 10):
+    #     generate_accuracies(select_committee, f"cifar_committee_hard_{i}")
 
     plot_accuracies()
-
-
+    plot_accuracies_cifar()
