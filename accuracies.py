@@ -41,10 +41,9 @@ def select_cluster_margin(device, dataset, size):
 
     return  cm.select_subset(dataset)
 
-def select_committee(device, dataset, size):
+def select_committee_soft(device, dataset, size):
     num_models = 2
-    seed_sample_frac = 0.23 #Hard
-    #seed_sample_frac = 0.4 #Soft
+    seed_sample_frac = 0.4
 
     # split at nearest 32 to avoid having partial batches
     seed_sample_size, vote_size = split_whole_batches(size, seed_sample_frac) 
@@ -52,6 +51,17 @@ def select_committee(device, dataset, size):
     models = [create_model().to(device) for i in range(num_models)]
     
     return Committee(models, device, True, seed_sample_size, vote_size).select_subset(dataset)
+
+def select_committee_hard(device, dataset, size):
+    num_models = 2
+    seed_sample_frac = 0.23
+
+    # split at nearest 32 to avoid having partial batches
+    seed_sample_size, vote_size = split_whole_batches(size, seed_sample_frac) 
+       
+    models = [create_model().to(device) for i in range(num_models)]
+    
+    return Committee(models, device, False, seed_sample_size, vote_size).select_subset(dataset)
 
 
 def generate_accuracies(select_fn, name):
@@ -160,17 +170,12 @@ def plot_accuracies_cifar():
     plt.savefig("figs/cifar_accuracy.pdf")
     plt.close()
 
-
-
 if __name__ == "__main__":
 
     torch.manual_seed(1234)
 
-    for i in range(0, 10):
-        generate_accuracies(select_committee, f"cfair_uniform2_{i}")
-
     # for i in range(0, 10):
-    #     generate_accuracies(select_committee, f"cifar_committee_hard_{i}")
+    #     generate_accuracies(select_committee_hard, f"committee_hard_{i}")
 
-    # plot_accuracies()
+    plot_accuracies()
     # plot_accuracies_cifar()
